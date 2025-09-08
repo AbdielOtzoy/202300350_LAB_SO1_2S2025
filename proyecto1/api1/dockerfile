@@ -27,8 +27,8 @@ WORKDIR /app
 # Copia el binario compilado desde el builder hacia el contenedor final
 COPY --from=builder /app/api .
 
-# Expone el puerto 8081
-EXPOSE 8081
+# Expone el puerto 3001
+EXPOSE 3001
 
 # Comando para ejecutar la aplicación (el binario compilado de GO)
 CMD ["./api"]

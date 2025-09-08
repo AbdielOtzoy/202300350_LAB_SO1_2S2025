@@ -1,0 +1,1 @@
+savedcmd_continfo_so1.ko := ld -r -m elf_x86_64 -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T /usr/src/kernels/6.16.3-100.fc41.x86_64/scripts/module.lds -o continfo_so1.ko continfo_so1.o continfo_so1.mod.o .module-common.o
