@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -21,10 +23,50 @@ type Container struct {
 	Status string
 }
 
+type Proccess struct {
+	PID          int
+	Name         string
+	Cmdline      string
+	vsz          int
+	rss          int
+	Memory_Usage float64
+	CPU_Usage    float64
+	State        string
+}
+
+type Lecture struct {
+	Totalram  int
+	Freeram   int
+	Procs     int
+	Processes []Proccess
+}
+
 func main() {
+	// ejecutar cron job al iniciar el daemon
+	script := "/home/abdielo/dev/sopes/proyecto1/proyecto-2/bash/script.sh"
+
+	if _, err := os.Stat(script); os.IsNotExist(err) {
+		log.Fatalf("El script %s no existe", script)
+	}
+
+	if err := os.Chmod(script, 0755); err != nil {
+		log.Printf("Advertencia: no se pudieron cambiar permisos del script: %v", err)
+	}
+
+	// Agregar cronjob (cada minuto)
+	cronCommand := fmt.Sprintf("* * * * * %s", script)
+	cmdCron := exec.Command("bash", "-c", fmt.Sprintf("(crontab -l 2>/dev/null; echo \"%s\") | crontab -", cronCommand))
+
+	output, err := cmdCron.CombinedOutput()
+	if err != nil {
+		log.Fatalf("Error agregando cronjob: %v, output: %s", err, string(output))
+	}
+
+	log.Printf("Cronjob creado correctamente: %s", cronCommand)
+
 	// Ejecutar comando docker antes de todo
 	cmd := exec.Command("docker", "start", "5fdbd83f343c")
-	output, err := cmd.CombinedOutput()
+	output, err = cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error al ejecutar docker start: %v\nSalida: %s", err, string(output))
 	}
@@ -61,6 +103,39 @@ func main() {
 	if err != nil {
 		log.Fatal("Error creando tabla:", err)
 	}
+
+	createContinfoTable := `
+	CREATE TABLE IF NOT EXISTS continfo (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		pid INTEGER,
+		name TEXT,
+		cmdline TEXT,
+		vsz INTEGER,
+		rss INTEGER,
+		memory_usage REAL,
+		cpu_usage REAL,
+		state TEXT
+	);`
+	_, err = db.Exec(createContinfoTable)
+	if err != nil {
+		log.Fatal("Error creando tabla continfo:", err)
+	}
+
+	createSysinfoTable := `
+	CREATE TABLE IF NOT EXISTS sysinfo (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		totalram INTEGER,
+		freeram INTEGER,
+		usedram INTEGER,
+		containersDeleted INTEGER,
+		procs INTEGER
+	);`
+	_, err = db.Exec(createSysinfoTable)
+	if err != nil {
+		log.Fatal("Error creando tabla sysinfo:", err)
+	}
+
+	// containersDeleted := 0 // count de contenedores eliminados
 
 	// Canal para capturar señales (detener daemon)
 	// 'sigs' es un canal que se utiliza para recibir señales del sistema operativo.
@@ -99,7 +174,39 @@ loop:
 						c.Name, c.CPU, c.Memory, c.Status)
 				}
 			}
+			// lecture := readContinfo()
+			// log.Printf("Lectura de continfo: %+v\n", lecture)
+			// // por cada proceso en la lectura, insertarlo en la base de datos
+			// for _, p := range lecture.Processes {
+			// 	_, err := db.Exec("INSERT INTO continfo (pid, name, cmdline, vsz, rss, memory_usage, cpu_usage, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			// 		p.PID, p.Name, p.Cmdline, p.vsz, p.rss, p.Memory_Usage, p.CPU_Usage, p.State)
+			// 	if err != nil {
+			// 		log.Println("Error insertando en continfo:", err)
+			// 	} else {
+			// 		log.Printf("Insertado en continfo: %s (PID: %d, Estado: %s)\n",
+			// 			p.Name, p.PID, p.State)
+			// 	}
+			// }
+
+			// syslecture := readSysinfo()
+			// usedram := syslecture.Totalram - syslecture.Freeram
+			// log.Printf("Lectura de sysinfo")
+			// _, err := db.Exec("INSERT INTO sysinfo (totalram, freeram, usedram, containersDeleted, procs) VALUES (?, ?, ?, ?, ?)",
+			// 	syslecture.Totalram, syslecture.Freeram, usedram, containersDeleted, syslecture.Procs)
+			// if err != nil {
+			// 	log.Println("Error insertando en sysinfo:", err)
+			// } else {
+			// 	log.Printf("Insertado en sysinfo: TotalRAM: %d, FreeRAM: %d, UsedRAM: %d, ContainersDeleted: %d, Procs: %d\n",
+			// 		syslecture.Totalram, syslecture.Freeram, usedram, containersDeleted, syslecture.Procs)
+			// }
 		case <-sigs:
+			cmd := exec.Command("crontab", "-r")
+			if err := cmd.Run(); err != nil {
+				log.Printf("Error eliminando cronjobs: %v", err)
+			} else {
+				log.Println("Todos los cronjobs eliminados correctamente")
+			}
+
 			// unload módulo del kernel al detener el daemon
 			unloadCmd := exec.Command("/home/abdielo/dev/sopes/proyecto1/proyecto-2/bash/mod_manager.sh", "unload")
 			unloadOut, err := unloadCmd.CombinedOutput()
@@ -142,4 +249,34 @@ func generateRandomContainers() []Container {
 		})
 	}
 	return containers
+}
+
+func readSysinfo() Lecture {
+	cmd := exec.Command("cat", "/proc/sysinfo_so1_202300350")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Fatal("Error reading sysinfo:", err)
+	}
+
+	var sysinfo Lecture
+	if err := json.Unmarshal(output, &sysinfo); err != nil {
+		log.Fatal("Error unmarshalling sysinfo:", err)
+	}
+
+	return sysinfo
+}
+
+func readContinfo() Lecture {
+	cmd := exec.Command("cat", "/proc/continfo_so1_202300350")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Fatal("Error reading continfo:", err)
+	}
+
+	var continfo Lecture
+	if err := json.Unmarshal(output, &continfo); err != nil {
+		log.Fatal("Error unmarshalling continfo:", err)
+	}
+
+	return continfo
 }

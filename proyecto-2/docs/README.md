@@ -84,6 +84,7 @@ script completo para volver a compilar el módulo y reiniciar el daemon:
 ```bash
 sudo systemctl stop grafana-db-daemon
 sudo systemctl disable grafana-db-daemon
+sudo rm daemon
 go build -o daemon main.go
 sudo chcon -t bin_t /home/abdielo/dev/sopes/proyecto1/proyecto-2/dashboard/daemon
 sudo chmod +x /home/abdielo/dev/sopes/proyecto1/proyecto-2/dashboard/daemon
@@ -96,4 +97,13 @@ status y logs:
 ```bash
 sudo systemctl status grafana-db-daemon
 journalctl -u grafana-db-daemon -f
+```
+
+Para que el daemon puede ejecutar el script es importante desactivar el SELinux o configurar los contextos de seguridad adecuados.
+```bash
+sudo setenforce 0
+```
+y cuando se haya terminado (para volver a activar)
+```bash
+sudo setenforce 1
 ```

@@ -167,7 +167,7 @@ static int sysinfo_show(struct seq_file *m, void *v) {
         seq_printf(m, "        \"vsz\": %lu,\n", vsz);
         seq_printf(m, "        \"rss\": %lu,\n", rss);
         seq_printf(m, "        \"Memory_Usage\": %lu.%lu,\n", mem_usage / 10, mem_usage % 10);
-        seq_printf(m, "        \"CPU_Usage\": %lu.%lu\n", cpu_usage / 100, cpu_usage % 100);
+        seq_printf(m, "        \"CPU_Usage\": %lu.%lu,\n", cpu_usage / 100, cpu_usage % 100);
         seq_printf(m, "        \"State\": \"%s\"\n", get_task_state(task));
         seq_printf(m, "     }");
 

@@ -1,0 +1,1 @@
+echo "Hola, la hora actual es: $(date)" >> /tmp/hora_actual.txt
