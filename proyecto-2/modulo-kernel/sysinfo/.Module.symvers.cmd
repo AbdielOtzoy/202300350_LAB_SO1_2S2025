@@ -1,1 +1,1 @@
-savedcmd_Module.symvers :=  /usr/src/kernels/6.16.3-100.fc41.x86_64/scripts/mod/modpost -M          -o Module.symvers -n -T modules.order -i /usr/src/kernels/6.16.3-100.fc41.x86_64/Module.symvers -e 
+savedcmd_Module.symvers :=  /usr/src/kernels/6.16.7-100.fc41.x86_64/scripts/mod/modpost -M          -o Module.symvers -n -T modules.order -i /usr/src/kernels/6.16.7-100.fc41.x86_64/Module.symvers -e 

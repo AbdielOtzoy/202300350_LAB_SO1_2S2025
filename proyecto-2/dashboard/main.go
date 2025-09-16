@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -43,7 +45,7 @@ type Lecture struct {
 
 func main() {
 	// ejecutar cron job al iniciar el daemon
-	script := "/home/abdielo/dev/sopes/proyecto1/proyecto-2/bash/script.sh"
+	script := "/home/abdielo/dev/sopes/proyecto1/proyecto-2/docker/create.sh"
 
 	if _, err := os.Stat(script); os.IsNotExist(err) {
 		log.Fatalf("El script %s no existe", script)
@@ -64,8 +66,8 @@ func main() {
 
 	log.Printf("Cronjob creado correctamente: %s", cronCommand)
 
-	// Ejecutar comando docker antes de todo
-	cmd := exec.Command("docker", "start", "5fdbd83f343c")
+	// Iniciar contenedor de grafana
+	cmd := exec.Command("docker", "start", "7518b64c3ca3")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error al ejecutar docker start: %v\nSalida: %s", err, string(output))
@@ -114,7 +116,8 @@ func main() {
 		rss INTEGER,
 		memory_usage REAL,
 		cpu_usage REAL,
-		state TEXT
+		state TEXT,
+		created_at INTEGER
 	);`
 	_, err = db.Exec(createContinfoTable)
 	if err != nil {
@@ -128,14 +131,15 @@ func main() {
 		freeram INTEGER,
 		usedram INTEGER,
 		containersDeleted INTEGER,
-		procs INTEGER
+		procs INTEGER,
+		created_at INTEGER
 	);`
 	_, err = db.Exec(createSysinfoTable)
 	if err != nil {
 		log.Fatal("Error creando tabla sysinfo:", err)
 	}
 
-	// containersDeleted := 0 // count de contenedores eliminados
+	containersDeleted := 0 // count de contenedores eliminados
 
 	// Canal para capturar señales (detener daemon)
 	// 'sigs' es un canal que se utiliza para recibir señales del sistema operativo.
@@ -146,10 +150,7 @@ func main() {
 
 	log.Println("Daemon iniciado. Generando datos cada 44 segundos...")
 
-	// 'ticker' es un temporizador que genera eventos periódicos cada 44 segundos.
-	// Estos eventos se utilizan para ejecutar tareas recurrentes, como generar e insertar contenedores aleatorios.
 	ticker := time.NewTicker(20 * time.Second)
-	// 'defer ticker.Stop()' asegura que el temporizador se detenga correctamente cuando el programa termine.
 	defer ticker.Stop()
 
 	// Este bucle infinito permite que el daemon esté en ejecución constante,
@@ -159,46 +160,66 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
-			// Este caso se ejecuta cada vez que el ticker genera un evento (cada 44 segundos).
-			// Genera contenedores aleatorios y los inserta en la base de datos.
-			containers := generateRandomContainers()
-			for _, c := range containers {
-				_, err := db.Exec("INSERT INTO containers (name, cpu, memory, status, created_at) VALUES (?, ?, ?, ?, ?)",
-					c.Name, c.CPU, c.Memory, c.Status, time.Now().UnixMilli())
+			lecture := readContinfo()
+			log.Printf("Lectura de continfo: %+v\n", lecture)
+			// por cada proceso en la lectura, insertarlo en la base de datos
+			for _, p := range lecture.Processes {
+				_, err := db.Exec("INSERT INTO continfo (pid, name, cmdline, vsz, rss, memory_usage, cpu_usage, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					p.PID, p.Name, p.Cmdline, p.vsz, p.rss, p.Memory_Usage, p.CPU_Usage, p.State, time.Now().UnixMilli())
 				if err != nil {
-					// Si ocurre un error al insertar, se registra en los logs.
-					log.Println("Error insertando:", err)
+					log.Println("Error insertando en continfo:", err)
 				} else {
-					// Si la inserción es exitosa, se registra el contenedor insertado en los logs.
-					log.Printf("Insertado contenedor random: %s (CPU: %.2f, MEM: %.2f, Estado: %s)\n",
-						c.Name, c.CPU, c.Memory, c.Status)
+					log.Printf("Insertado en continfo: %s (PID: %d, Estado: %s)\n",
+						p.Name, p.PID, p.State)
 				}
 			}
-			// lecture := readContinfo()
-			// log.Printf("Lectura de continfo: %+v\n", lecture)
-			// // por cada proceso en la lectura, insertarlo en la base de datos
-			// for _, p := range lecture.Processes {
-			// 	_, err := db.Exec("INSERT INTO continfo (pid, name, cmdline, vsz, rss, memory_usage, cpu_usage, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			// 		p.PID, p.Name, p.Cmdline, p.vsz, p.rss, p.Memory_Usage, p.CPU_Usage, p.State)
-			// 	if err != nil {
-			// 		log.Println("Error insertando en continfo:", err)
-			// 	} else {
-			// 		log.Printf("Insertado en continfo: %s (PID: %d, Estado: %s)\n",
-			// 			p.Name, p.PID, p.State)
-			// 	}
-			// }
+			// obtener IDs de contenedores python en ejecución
+			syslecture := readSysinfo()
+			usedram := syslecture.Totalram - syslecture.Freeram
+			log.Printf("Lectura de sysinfo")
+			_, err := db.Exec("INSERT INTO sysinfo (totalram, freeram, usedram, containersDeleted, procs, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+				syslecture.Totalram, syslecture.Freeram, usedram, containersDeleted, syslecture.Procs, time.Now().UnixMilli())
+			if err != nil {
+				log.Println("Error insertando en sysinfo:", err)
+			} else {
+				log.Printf("Insertado en sysinfo: TotalRAM: %d, FreeRAM: %d, UsedRAM: %d, ContainersDeleted: %d, Procs: %d\n",
+					syslecture.Totalram, syslecture.Freeram, usedram, containersDeleted, syslecture.Procs)
+			}
+			containerIDs, err := getRunningPythonContainerIDs()
+			if err != nil {
+				log.Println("Error obteniendo IDs de contenedores Python:", err)
+				continue
+			}
 
-			// syslecture := readSysinfo()
-			// usedram := syslecture.Totalram - syslecture.Freeram
-			// log.Printf("Lectura de sysinfo")
-			// _, err := db.Exec("INSERT INTO sysinfo (totalram, freeram, usedram, containersDeleted, procs) VALUES (?, ?, ?, ?, ?)",
-			// 	syslecture.Totalram, syslecture.Freeram, usedram, containersDeleted, syslecture.Procs)
-			// if err != nil {
-			// 	log.Println("Error insertando en sysinfo:", err)
-			// } else {
-			// 	log.Printf("Insertado en sysinfo: TotalRAM: %d, FreeRAM: %d, UsedRAM: %d, ContainersDeleted: %d, Procs: %d\n",
-			// 		syslecture.Totalram, syslecture.Freeram, usedram, containersDeleted, syslecture.Procs)
-			// }
+			if len(containerIDs) == 0 {
+				log.Println("No hay contenedores Python en ejecución.")
+				continue
+			}
+			if len(containerIDs) > 5 {
+				// 1. Selecciona todos los contenedores excepto los últimos 5
+				toDelete := containerIDs[:len(containerIDs)-5]
+
+				// 2. Calcula cuántos contenedores eliminar (la mitad de ellos)
+				numToRemove := len(toDelete) / 2
+
+				// 3. Desordena aleatoriamente la lista de candidatos a eliminar
+				rand.Shuffle(len(toDelete), func(i, j int) {
+					toDelete[i], toDelete[j] = toDelete[j], toDelete[i]
+				})
+
+				// 4. Elimina la mitad de los contenedores seleccionados
+				for i := range numToRemove {
+					id := toDelete[i]
+					cmd := exec.Command("docker", "rm", "-f", id)
+					output, err := cmd.CombinedOutput()
+					if err != nil {
+						log.Printf("Error eliminando contenedor %s: %v, output: %s", id, err, string(output))
+					} else {
+						log.Printf("Contenedor %s eliminado correctamente. Salida: %s", id, string(output))
+						containersDeleted++
+					}
+				}
+			}
 		case <-sigs:
 			cmd := exec.Command("crontab", "-r")
 			if err := cmd.Run(); err != nil {
@@ -217,7 +238,7 @@ loop:
 			}
 
 			// para el contenedor docker al detener el daemon
-			stopCmd := exec.Command("docker", "stop", "5fdbd83f343c")
+			stopCmd := exec.Command("docker", "stop", "7518b64c3ca3")
 			stopOut, err := stopCmd.CombinedOutput()
 			if err != nil {
 				log.Printf("Error al detener contenedor: %v\nSalida: %s", err, string(stopOut))
@@ -231,24 +252,6 @@ loop:
 			break loop
 		}
 	}
-}
-
-// Genera hasta 4 contenedores con datos random
-func generateRandomContainers() []Container {
-	names := []string{"nginx", "redis", "mysql", "golang-app", "nodejs-app", "python-app", "java-app", "ruby-app", "postgres", "mongodb", "ubuntu", "alpine"}
-	statuses := []string{"running", "stopped", "paused", "restarting", "dead", "zombie"}
-
-	n := rand.Intn(4) + 1 // mínimo 1, máximo 4
-	var containers []Container
-	for i := 0; i < n; i++ {
-		containers = append(containers, Container{
-			Name:   names[rand.Intn(len(names))],
-			CPU:    rand.Float64() * 100, // 0-100%
-			Memory: rand.Float64() * 512, // hasta 1GB
-			Status: statuses[rand.Intn(len(statuses))],
-		})
-	}
-	return containers
 }
 
 func readSysinfo() Lecture {
@@ -279,4 +282,35 @@ func readContinfo() Lecture {
 	}
 
 	return continfo
+}
+
+func getRunningPythonContainerIDs() ([]string, error) {
+	// Definir el comando completo
+	cmdStr := `docker ps -a --filter "status=running" --format "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t{{.Status}}\t{{.Names}}" | grep "python" | awk '{print $1}'`
+
+	// Ejecutar el comando usando bash para manejar los pipes correctamente
+	cmd := exec.Command("bash", "-c", cmdStr)
+
+	// Capturar la salida
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("error al ejecutar el comando: %w", err)
+	}
+
+	// Procesar la salida línea por línea
+	var containerIDs []string
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			containerIDs = append(containerIDs, line)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error al procesar la salida: %w", err)
+	}
+
+	return containerIDs, nil
 }

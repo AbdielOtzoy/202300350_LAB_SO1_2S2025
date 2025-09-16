@@ -15,11 +15,12 @@ CONTAINERS_TO_CREATE=()
 # Asegurar requisitos mínimos
 CONTAINERS_TO_CREATE+=("low:latest")
 CONTAINERS_TO_CREATE+=("low:latest")
+CONTAINERS_TO_CREATE+=("low:latest")
 CONTAINERS_TO_CREATE+=("cpu_stress:latest")
 CONTAINERS_TO_CREATE+=("ram:latest")
 
-# Llenar el resto (6) con imágenes aleatorias
-for i in {1..6}; do
+# Llenar el resto (5) con imágenes aleatorias
+for i in {1..5}; do
     random_index=$((RANDOM % ${#IMAGES[@]}))
     CONTAINERS_TO_CREATE+=("${IMAGES[$random_index]}")
 done
