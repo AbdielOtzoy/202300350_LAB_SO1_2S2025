@@ -22,7 +22,7 @@
 #include <linux/nsproxy.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Abdiel Otzoy - 202300350 (Modificado por Gemini)");
+MODULE_AUTHOR("Abdiel Otzoy - 202300350");
 MODULE_DESCRIPTION("Modulo para leer informacion de memoria y CPU de contenedores Docker en JSON");
 MODULE_VERSION("1.2");
 
