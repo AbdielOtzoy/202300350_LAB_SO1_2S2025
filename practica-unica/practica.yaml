@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: practica
+  labels:
+    app: practica
+spec:
+  containers:
+  - name: practica
+    image: ghcr.io/project-zot/zot-linux-amd64:v2.1.0
+    ports:
+    - containerPort: 5000
+    volumeMounts:
+    - name: zot-storage
+      mountPath: /var/lib/zot
+  volumes:
+  - name: zot-storage
+    persistentVolumeClaim:
+      claimName: zot-pvc
+  restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot-clusterip
+spec:
+  type: ClusterIP
+  selector:
+    app: practica
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot-lb
+spec:
+  type: LoadBalancer
+  selector:
+    app: practica
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
