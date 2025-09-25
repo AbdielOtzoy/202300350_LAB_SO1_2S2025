@@ -4,6 +4,6 @@
 
 **Links**:
 
-[Zot Hub](http://34.27.21.94:5000)
+[Zot Hub](http://34.66.65.251:5000)
 
-[Zot Repositories](http://34.27.21.94:5000/v2/_catalog)
+[Zot Repositories](http://34.66.65.251:5000/v2/_catalog)

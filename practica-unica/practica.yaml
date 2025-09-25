@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: zot-pvc
+  name: zot-pvc-abdiel
 spec:
   accessModes:
     - ReadWriteOnce
@@ -12,12 +12,12 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: practica
+  name: abdiel
   labels:
-    app: practica
+    app: abdiel
 spec:
   containers:
-  - name: practica
+  - name: abdiel
     image: ghcr.io/project-zot/zot-linux-amd64:v2.1.0
     ports:
     - containerPort: 5000
@@ -27,31 +27,19 @@ spec:
   volumes:
   - name: zot-storage
     persistentVolumeClaim:
-      claimName: zot-pvc
+      claimName: zot-pvc-abdiel
   restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: zot-clusterip
-spec:
-  type: ClusterIP
-  selector:
-    app: practica
-  ports:
-    - name: http
-      port: 5000
-      targetPort: 5000
-      protocol: TCP
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: zot-lb
+  name: zot-lb-abdiel
+  annotations:
+    networking.gke.io/load-balancer-ip-address: "34.63.21.214"
 spec:
   type: LoadBalancer
   selector:
-    app: practica
+    app: abdiel
   ports:
     - name: http
       port: 5000
