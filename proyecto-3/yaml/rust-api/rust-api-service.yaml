@@ -1,0 +1,36 @@
+# rust-api-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: rust-api-service
+  namespace: default
+spec:
+  selector:
+    app: rust-api
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP  # O NodePort también funciona
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rust-api-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "gce"  # GKE Ingress
+    # Opcional: para HTTPS automático
+    # kubernetes.io/ingress.global-static-ip-name: "tu-ip-estatica"
+    # networking.gke.io/managed-certificates: "rust-api-cert"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*  # GKE usa /* para capturar todo
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: rust-api-service
+            port:
+              number: 8080

@@ -1,0 +1,50 @@
+# go-kafka-writer-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publisher-kafka
+  namespace: default
+spec:
+  replicas: 1  # Probar con 1 y 2 réplicas
+  selector:
+    matchLabels:
+      app: publisher-kafka
+  template:
+    metadata:
+      labels:
+        app: publisher-kafka
+    spec:
+      containers:
+      - name: publisher-kafka
+        image: d1a0ec9c46ec.ngrok-free.app/kafka-publisher:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 50053  # Puerto gRPC (ajusta según tu código)
+        env:
+        - name: KAFKA_BROKER_ADDRESS
+          value: "my-cluster-kafka-bootstrap:9092"
+        - name: KAFKA_TOPIC
+          value: "weather-tweets"
+        - name: GRPC_PORT
+          value: "50053"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: publisher-kafka-service
+  namespace: default
+spec:
+  selector:
+    app: publisher-kafka
+  ports:
+  - protocol: TCP
+    port: 50053
+    targetPort: 50053
+  type: ClusterIP

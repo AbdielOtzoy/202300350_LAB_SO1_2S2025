@@ -1,0 +1,50 @@
+# go-receptor-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receptor
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: receptor
+  template:
+    metadata:
+      labels:
+        app: receptor
+    spec:
+      containers:
+      - name: receptor
+        image: d1a0ec9c46ec.ngrok-free.app/go-receptor:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 50051  # Puerto gRPC del receptor
+        env:
+        - name: RABBITMQ_PUBLISHER_ADDRESS
+          value: "publisher-rabbit-service:50052"
+        - name: KAFKA_PUBLISHER_ADDRESS
+          value: "publisher-kafka-service:50053"
+        - name: RECEIVER_PORT
+          value: "50051"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: receptor-service
+  namespace: default
+spec:
+  selector:
+    app: receptor
+  ports:
+  - protocol: TCP
+    port: 50051
+    targetPort: 50051
+  type: ClusterIP

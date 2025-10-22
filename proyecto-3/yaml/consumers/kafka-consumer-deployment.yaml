@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: default  # Mismo namespace que Kafka
+  labels:
+    app: kafka-consumer
+    component: consumer
+    broker: kafka
+spec:
+  replicas: 1  # Puedes ajustar según necesites
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+        component: consumer
+        broker: kafka
+    spec:
+      containers:
+      - name: kafka-consumer
+        image: d1a0ec9c46ec.ngrok-free.app/kafka-consumer:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BROKER_ADDRESS
+          value: "my-cluster-kafka-bootstrap:9092"
+        - name: KAFKA_TOPIC
+          value: "weather_tweets"
+        - name: KAFKA_GROUP_ID
+          value: "kafka-consumer-group"
+        - name: VALKEY_ADDRESS
+          value: "valkey-service:6379"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-consumer-service
+  namespace: default
+spec:
+  selector:
+    app: kafka-consumer
+  ports:
+  - protocol: TCP
+    port: 9092
+    targetPort: 9092
+  type: ClusterIP
+
+        

@@ -1,0 +1,44 @@
+# rust-api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-api
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rust-api
+  template:
+    metadata:
+      labels:
+        app: rust-api
+    spec:
+      containers:
+      - name: rust-api
+        image: d1a0ec9c46ec.ngrok-free.app/rust-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080  # Actix-web REST API port
+        env:
+        - name: GRPC_SERVER_URL
+          value: "http://receptor-service:50051"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5

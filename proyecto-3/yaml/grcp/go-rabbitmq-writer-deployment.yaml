@@ -1,0 +1,50 @@
+# go-rabbitmq-writer-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publisher-rabbit
+  namespace: default
+spec:
+  replicas: 1  # Probar con 1 y 2 réplicas
+  selector:
+    matchLabels:
+      app: publisher-rabbit
+  template:
+    metadata:
+      labels:
+        app: publisher-rabbit
+    spec:
+      containers:
+      - name: publisher-rabbit
+        image: 65f9d6d7928a.ngrok-free.app/rabbit-publisher:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 50052  # Puerto gRPC diferente al de Kafka
+        env:
+        - name: RABBITMQ_URL
+          value: "amqp://admin:admin123@rabbitmq:5672/"
+        - name: RABBITMQ_QUEUE
+          value: "weather-tweets"
+        - name: GRPC_PORT
+          value: "50052"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: publisher-rabbit-service
+  namespace: default
+spec:
+  selector:
+    app: publisher-rabbit
+  ports:
+  - protocol: TCP
+    port: 50052
+    targetPort: 50052
+  type: ClusterIP
