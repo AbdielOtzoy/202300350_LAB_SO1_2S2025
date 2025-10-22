@@ -1,0 +1,29 @@
+# Etapa 1: Builder
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY go.mod go.sum ./
+
+# Descargar dependencias
+RUN go mod download
+
+# Copiar todo el código fuente
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o receptor ./receptor/receptor.go
+
+# Etapa 2: Runner
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copiar el binario construido desde la etapa de builder
+COPY --from=builder /app/receptor .
+
+# Exponer el puerto en el que escucha el servidor
+EXPOSE 50051
+
+# Comando para ejecutar el servidor
+CMD ["./receptor"]

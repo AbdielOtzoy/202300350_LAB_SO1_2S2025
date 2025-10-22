@@ -1,0 +1,32 @@
+# Etapa 1: Builder
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY go.mod go.sum ./
+
+# Descargar dependencias
+RUN go mod download
+
+# Copiar todo el código fuente
+COPY . .
+
+# Compilar el consumer de Kafka
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o consumer_kafka ./consumer_kafka/consumer_kafka.go
+
+# Etapa 2: Runner
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# Copiar el binario compilado desde el builder
+COPY --from=builder /app/consumer_kafka .
+
+# Exponer puerto si es necesario (opcional para consumers)
+# EXPOSE 8080
+
+# Comando para ejecutar el consumer
+CMD ["./consumer_kafka"]

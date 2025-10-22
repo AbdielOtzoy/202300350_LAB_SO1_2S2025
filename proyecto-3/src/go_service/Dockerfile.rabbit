@@ -1,0 +1,30 @@
+# Build stage
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copiar código fuente
+COPY . .
+
+# Compilar el binario
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o publisher_rabbit ./publisher/publisher_rabbit.go
+
+# Runtime stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# Copiar el binario desde el builder
+COPY --from=builder /app/publisher_rabbit .
+
+# Exponer puerto
+EXPOSE 50052
+
+# Ejecutar
+CMD ["./publisher_rabbit"]
