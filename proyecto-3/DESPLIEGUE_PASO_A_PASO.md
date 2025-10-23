@@ -443,6 +443,10 @@ kubectl wait --for=condition=Ready pod -l app=grafana --timeout=120s
 
 # Ver el servicio
 kubectl get svc grafana-service
+
+kubectl get pods -l app=grafana
+
+kubectl port-forward grafana-5fdbc49554-h2wlx 8080:3000
 ```
 
 **Acceso a Grafana:**
