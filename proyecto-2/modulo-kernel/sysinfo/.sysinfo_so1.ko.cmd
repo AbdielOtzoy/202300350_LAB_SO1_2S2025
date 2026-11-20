@@ -1,1 +1,0 @@
-savedcmd_sysinfo_so1.ko := ld -r -m elf_x86_64 -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T /usr/src/kernels/6.16.8-100.fc41.x86_64/scripts/module.lds -o sysinfo_so1.ko sysinfo_so1.o sysinfo_so1.mod.o .module-common.o

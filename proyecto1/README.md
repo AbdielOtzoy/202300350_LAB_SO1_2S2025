@@ -5,11 +5,11 @@ Este documento proporciona una guía completa para la gestión y operación de m
 
 ## 📋 Tabla de Contenidos
 
--   [Obtener Direcciones IP](https://claude.ai/chat/926a0a0c-8836-4f0d-9df6-907df0789db4#-obtener-direcciones-ip)
--   [Conexión SSH a VMs](https://claude.ai/chat/926a0a0c-8836-4f0d-9df6-907df0789db4#-conexi%C3%B3n-ssh-a-vms)
--   [Gestión de Servicios](https://claude.ai/chat/926a0a0c-8836-4f0d-9df6-907df0789db4#%EF%B8%8F-gesti%C3%B3n-de-servicios)
--   [Despliegue de APIs](https://claude.ai/chat/926a0a0c-8836-4f0d-9df6-907df0789db4#-despliegue-de-apis)
--   [Pruebas y Validación](https://claude.ai/chat/926a0a0c-8836-4f0d-9df6-907df0789db4#-pruebas-y-validaci%C3%B3n)
+-   [Obtener Direcciones IP](#-obtener-direcciones-ip)
+-   [Conexión SSH a VMs](#-conexi%C3%B3n-ssh-a-vms)
+-   [Gestión de Servicios](#%EF%B8%8F-gesti%C3%B3n-de-servicios)
+-   [Despliegue de APIs](#-despliegue-de-apis)
+-   [Pruebas y Validación](#-pruebas-y-validaci%C3%B3n)
 
 ## 🌐 Obtener Direcciones IP
 
